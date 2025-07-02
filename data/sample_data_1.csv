@@ -1,0 +1,7 @@
+Name,Age,Email,Join Date,Score
+Alice,25,alice@example.com,2022-01-10,85.5
+Bob,,bob@,2022-03-15,90.0
+Charlie,35,charlie@example.com,not a date,
+,40,david@example,2022-07-30,88.0
+Eve,unknown,,2022/08/15,70.0
+Alice,25,alice@example.com,2022-01-10,85.5

@@ -14,20 +14,24 @@ class DataCleaning:
             columns = df.columns
 
         for col in columns:
-            if strategy == 'mean' and df[col].dtype in [np.float64, np.int64]:
-                df[col].fillna(df[col].mean(), inplace=True)
-            elif strategy == 'median' and df[col].dtype in [np.float64, np.int64]:
-                df[col].fillna(df[col].median(), inplace=True)
-            elif strategy == 'mode':
-                df[col].fillna(df[col].mode()[0], inplace=True)
-            elif strategy == 'ffill':
-                df[col].fillna(method='ffill', inplace=True)
-            elif strategy == 'bfill':
-                df[col].fillna(method='bfill', inplace=True)
-            elif strategy == 'drop':
-                df.dropna(subset=[col], inplace=True)
-            else:
-                print(f"Strategy '{strategy}' not supported or incompatible with column {col}")
+            if df[col].isnull().any():  # Only process columns with missing values
+                if strategy == 'mean' and df[col].dtype in [np.float64, np.int64]:
+                    df[col].fillna(df[col].mean(), inplace=True)
+                elif strategy == 'median' and df[col].dtype in [np.float64, np.int64]:
+                    df[col].fillna(df[col].median(), inplace=True)
+                elif strategy == 'mode':
+                    mode_values = df[col].mode()
+                    if len(mode_values) > 0:
+                        df[col].fillna(mode_values[0], inplace=True)
+                elif strategy == 'ffill':
+                    df[col].fillna(method='ffill', inplace=True)
+                elif strategy == 'bfill':
+                    df[col].fillna(method='bfill', inplace=True)
+                elif strategy == 'drop':
+                    df.dropna(subset=[col], inplace=True)
+                else:
+                    # For non-numeric columns or unsupported strategies, use forward fill
+                    df[col].fillna(method='ffill', inplace=True)
         
         self.df = df
 
@@ -69,23 +73,30 @@ class DataCleaning:
         """
         if method == 'iqr':
             for col in columns:
-                Q1 = self.df[col].quantile(0.25)
-                Q3 = self.df[col].quantile(0.75)
-                IQR = Q3 - Q1
-                self.df = self.df[
-                    ~((self.df[col] < (Q1 - threshold * IQR)) | (self.df[col] > (Q3 + threshold * IQR)))
-                ]
+                if col in self.df.columns and self.df[col].dtype in [np.float64, np.int64]:
+                    Q1 = self.df[col].quantile(0.25)
+                    Q3 = self.df[col].quantile(0.75)
+                    IQR = Q3 - Q1
+                    self.df = self.df[
+                        ~((self.df[col] < (Q1 - threshold * IQR)) | (self.df[col] > (Q3 + threshold * IQR)))
+                    ]
         elif method == 'zscore':
-            from scipy.stats import zscore
-            z_scores = np.abs(zscore(self.df[columns]))
-            self.df = self.df[(z_scores < threshold).all(axis=1)]
+            try:
+                from scipy.stats import zscore
+                numeric_cols = [col for col in columns if col in self.df.columns and self.df[col].dtype in [np.float64, np.int64]]
+                if numeric_cols:
+                    z_scores = np.abs(zscore(self.df[numeric_cols]))
+                    self.df = self.df[(z_scores < threshold).all(axis=1)]
+            except ImportError:
+                print("scipy not available, skipping zscore outlier removal")
 
     def clean_data(self):
         """
-        Perform complete cleaning: remove duplicates, clean column names
+        Perform complete cleaning: remove duplicates, clean column names, and handle missing values
         """
         self.remove_duplicates()
         self.clean_column_names()
+        self.handle_missing_values(strategy='ffill')  # Add default missing value handling
 
     def get_clean_data(self):
         return self.df

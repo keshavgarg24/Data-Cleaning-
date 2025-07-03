@@ -57,11 +57,14 @@ class DataIngestion:
         """Fetches data from an API and returns it as a DataFrame."""
         try:
             response = requests.get(api_url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            df = pd.DataFrame(data)
-            print(f"✅ API Data Fetched Successfully: {api_url}")
-            return df
+            if response.status_code == 200:
+                data = response.json()
+                df = pd.DataFrame(data)
+                print(f"✅ API Data Fetched Successfully: {api_url}")
+                return df
+            else:
+                print(f"❌ API Request Failed with status code: {response.status_code}")
+                return None
         except Exception as e:
             print(f"❌ Error fetching data from API: {e}")
             return None
